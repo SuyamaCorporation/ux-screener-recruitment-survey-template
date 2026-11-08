@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UXリサーチ スクリーナー調査テンプレートビルダー</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<div class="max-w-4xl mx-auto p-4">
+  <h1 class="text-2xl font-bold text-gray-800 mb-2">UXリサーチ スクリーナー調査テンプレートビルダー</h1>
+  <p class="text-gray-500 text-sm mb-6">参加者選定（スクリーニング）アンケートをGUIで作成し、Markdown/テキストでエクスポートできます。</p>
+
+  <div class="bg-white rounded-xl shadow p-4 mb-4">
+    <h2 class="text-lg font-semibold text-gray-700 mb-3">調査タイトル</h2>
+    <input id="surveyTitle" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="例：ECサイト利用者インタビュー 参加者スクリーニング" aria-label="調査タイトル">
+  </div>
+
+  <div class="bg-white rounded-xl shadow p-4 mb-4">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-lg font-semibold text-gray-700">設問一覧</h2>
+      <button id="addQuestion" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-blue-700" aria-label="設問を追加">＋ 設問を追加</button>
+    </div>
+    <div id="questionList" class="space-y-4"></div>
+    <p id="emptyMsg" class="text-gray-400 text-sm text-center py-6">設問がまだありません。「＋ 設問を追加」から追加してください。</p>
+  </div>
+
+  <div class="flex gap-3 mb-6">
+    <button id="exportMd" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700" aria-label="Markdownでエクスポート">Markdownでエクスポート</button>
+    <button id="exportTxt" class="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700" aria-label="テキストでエクスポート">テキストでエクスポート</button>
+    <button id="clearAll" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-semibold hover:bg-red-200" aria-label="全てクリア">クリア</button>
+  </div>
+
+  <div id="previewArea" class="hidden bg-white rounded-xl shadow p-4 mb-4">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold text-gray-700">プレビュー</h2>
+      <button id="copyPreview" class="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded hover:bg-gray-200" aria-label="コピー">コピー</button>
+    </div>
+    <pre id="previewContent" class="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 rounded p-3 max-h-80 overflow-y-auto"></pre>
+  </div>
+</div>
+
+<div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6" role="dialog" aria-modal="true" aria-label="設問編集">
+    <h3 class="text-lg font-bold mb-4" id="modalTitle">設問を追加</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">設問テキスト</label>
+        <input id="qText" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="例：現在ECサイトを週に何回利用しますか？" aria-label="設問テキスト">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">設問タイプ</label>
+        <select id="qType" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" aria-label="設問タイプ">
+          <option value="single">単一選択</option>
+          <option value="multi">複数選択</option>
+          <option value="text">テキスト</option>
+          <option value="number">数値</option>
+          <option value="likert">リカート尺度（1-5）</option>
+        </select>
+      </div>
+      <div id="choicesSection">
+        <label class="block text-sm font-medium text-gray-700 mb-1">選択肢（1行1つ）</label>
+        <textarea id="qChoices" rows="4" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="週1回&#10;週2-3回&#10;週4-6回&#10;毎日" aria-label="選択肢"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">合格条件（通過させる値・空欄で全員通過）</label>
+        <input id="qPassCondition" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="例：週2-3回, 週4-6回, 毎日" aria-label="合格条件">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">必須</label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input id="qRequired" type="checkbox" class="w-4 h-4" aria-label="必須設問">
+          <span class="text-sm text-gray-700">この設問を必須にする</span>
+        </label>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-5">
+      <button id="modalSave" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700" aria-label="保存">保存</button>
+      <button id="modalCancel" class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-200" aria-label="キャンセル">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+const STORAGE_KEY = 'ux_screener_v1';
+let questions = [];
+let editIndex = -1;
+
+function load() {
+  try {
+    const d = localStorage.getItem(STORAGE_KEY);
+    if (d) {
+      const parsed = JSON.parse(d);
+      questions = parsed.questions || [];
+      document.getElementById('surveyTitle').value = parsed.title || '';
+    }
+  } catch {}
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    title: document.getElementById('surveyTitle').value,
+    questions
+  }));
+}
+
+function typeLabel(t) {
+  return { single:'単一選択', multi:'複数選択', text:'テキスト', number:'数値', likert:'リカート尺度' }[t] || t;
+}
+
+function render() {
+  const list = document.getElementById('questionList');
+  const empty = document.getElementById('emptyMsg');
+  list.innerHTML = '';
+  empty.classList.toggle('hidden', questions.length > 0);
+  questions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'border rounded-lg p-4 bg-gray-50 relative';
+    div.innerHTML = `
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">Q${i+1}</span>
+            <span class="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">${typeLabel(q.type)}</span>
+            ${q.required ? '<span class="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded">必須</span>' : ''}
+          </div>
+          <p class="font-medium text-gray-800 text-sm">${esc(q.text)}</p>
+          ${q.choices && q.choices.length ? `<div class="mt-1 flex flex-wrap gap-1">${q.choices.map(c => `<span class="text-xs bg-white border px-2 py-0.5 rounded text-gray-600">${esc(c)}</span>`).join('')}</div>` : ''}
+          ${q.passCondition ? `<p class="text-xs text-green-700 mt-1">合格条件: ${esc(q.passCondition)}</p>` : ''}
+        </div>
+        <div class="flex gap-1">
+          ${i > 0 ? `<button onclick="moveUp(${i})" class="text-gray-400 hover:text-gray-700 px-1" aria-label="上へ">↑</button>` : ''}
+          ${i < questions.length-1 ? `<button onclick="moveDown(${i})" class="text-gray-400 hover:text-gray-700 px-1" aria-label="下へ">↓</button>` : ''}
+          <button onclick="editQ(${i})" class="text-blue-500 hover:text-blue-700 text-xs px-2 py-1 border border-blue-200 rounded" aria-label="編集">編集</button>
+          <button onclick="deleteQ(${i})" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 border border-red-200 rounded" aria-label="削除">削除</button>
+        </div>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function moveUp(i) { if (i > 0) { [questions[i-1], questions[i]] = [questions[i], questions[i-1]]; save(); render(); } }
+function moveDown(i) { if (i < questions.length-1) { [questions[i], questions[i+1]] = [questions[i+1], questions[i]]; save(); render(); } }
+function deleteQ(i) { questions.splice(i, 1); save(); render(); }
+
+function editQ(i) {
+  editIndex = i;
+  const q = questions[i];
+  document.getElementById('modalTitle').textContent = '設問を編集';
+  document.getElementById('qText').value = q.text;
+  document.getElementById('qType').value = q.type;
+  document.getElementById('qChoices').value = (q.choices || []).join('\n');
+  document.getElementById('qPassCondition').value = q.passCondition || '';
+  document.getElementById('qRequired').checked = q.required || false;
+  updateChoicesVisibility();
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function updateChoicesVisibility() {
+  const t = document.getElementById('qType').value;
+  const show = t === 'single' || t === 'multi';
+  document.getElementById('choicesSection').classList.toggle('hidden', !show);
+}
+
+document.getElementById('qType').addEventListener('change', updateChoicesVisibility);
+
+document.getElementById('addQuestion').addEventListener('click', () => {
+  editIndex = -1;
+  document.getElementById('modalTitle').textContent = '設問を追加';
+  document.getElementById('qText').value = '';
+  document.getElementById('qType').value = 'single';
+  document.getElementById('qChoices').value = '';
+  document.getElementById('qPassCondition').value = '';
+  document.getElementById('qRequired').checked = false;
+  updateChoicesVisibility();
+  document.getElementById('modal').classList.remove('hidden');
+});
+
+document.getElementById('modalCancel').addEventListener('click', () => {
+  document.getElementById('modal').classList.add('hidden');
+});
+
+document.getElementById('modalSave').addEventListener('click', () => {
+  const text = document.getElementById('qText').value.trim();
+  if (!text) { alert('設問テキストを入力してください。'); return; }
+  const type = document.getElementById('qType').value;
+  const choicesRaw = document.getElementById('qChoices').value;
+  const choices = (type === 'single' || type === 'multi') ? choicesRaw.split('\n').map(s => s.trim()).filter(Boolean) : [];
+  const q = {
+    text,
+    type,
+    choices,
+    passCondition: document.getElementById('qPassCondition').value.trim(),
+    required: document.getElementById('qRequired').checked
+  };
+  if (editIndex >= 0) {
+    questions[editIndex] = q;
+  } else {
+    questions.push(q);
+  }
+  save();
+  render();
+  document.getElementById('modal').classList.add('hidden');
+});
+
+function generateText(fmt) {
+  const title = document.getElementById('surveyTitle').value.trim() || 'スクリーニング調査';
+  let out = '';
+  if (fmt === 'md') {
+    out += `# ${title}\n\n`;
+    out += `> このアンケートはユーザーリサーチ参加者の選定に使用します。\n\n`;
+    questions.forEach((q, i) => {
+      out += `## Q${i+1}${q.required ? ' \\*' : ''}: ${q.text}\n`;
+      out += `**種別**: ${typeLabel(q.type)}\n\n`;
+      if (q.choices.length) {
+        q.choices.forEach(c => { out += `- [ ] ${c}\n`; });
+        out += '\n';
+      }
+      if (q.passCondition) out += `> 合格条件: ${q.passCondition}\n\n`;
+    });
+    out += `---\n*\\* 必須設問*\n`;
+  } else {
+    out += `【${title}】\n\n`;
+    questions.forEach((q, i) => {
+      out += `Q${i+1}${q.required ? '（必須）' : ''}: ${q.text}\n`;
+      out += `種別: ${typeLabel(q.type)}\n`;
+      if (q.choices.length) {
+        q.choices.forEach((c, ci) => { out += `  ${ci+1}. ${c}\n`; });
+      }
+      if (q.passCondition) out += `合格条件: ${q.passCondition}\n`;
+      out += '\n';
+    });
+  }
+  return out;
+}
+
+document.getElementById('exportMd').addEventListener('click', () => {
+  const text = generateText('md');
+  document.getElementById('previewContent').textContent = text;
+  document.getElementById('previewArea').classList.remove('hidden');
+  download(text, 'screener.md', 'text/markdown');
+});
+
+document.getElementById('exportTxt').addEventListener('click', () => {
+  const text = generateText('txt');
+  document.getElementById('previewContent').textContent = text;
+  document.getElementById('previewArea').classList.remove('hidden');
+  download(text, 'screener.txt', 'text/plain');
+});
+
+document.getElementById('copyPreview').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('previewContent').textContent);
+});
+
+document.getElementById('clearAll').addEventListener('click', () => {
+  if (confirm('全ての設問を削除しますか？')) {
+    questions = [];
+    save();
+    render();
+    document.getElementById('previewArea').classList.add('hidden');
+  }
+});
+
+document.getElementById('surveyTitle').addEventListener('input', save);
+
+function download(text, filename, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+  a.download = filename;
+  a.click();
+}
+
+load();
+render();
+</script>
+</body>
+</html>
